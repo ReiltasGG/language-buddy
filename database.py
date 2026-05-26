@@ -18,17 +18,23 @@ def init_db():
             language TEXT NOT NULL,
             category TEXT NOT NULL,
             japanese TEXT NOT NULL,
+            furigana TEXT DEFAULT '',
             english TEXT NOT NULL,
             correct INTEGER DEFAULT 0,
             incorrect INTEGER DEFAULT 0,
             last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # add furigana column if it doesn't exist (for existing databases)
+    try:
+        conn.execute("ALTER TABLE flashcard_progress ADD COLUMN furigana TEXT DEFAULT ''")
+    except:
+        pass
     conn.commit()
     conn.close()
 
 
-def record_answer(language, category, japanese, english, correct):
+def record_answer(language, category, japanese, furigana, english, correct):
     conn = get_db()
     row = conn.execute("""
         SELECT id FROM flashcard_progress
@@ -39,20 +45,20 @@ def record_answer(language, category, japanese, english, correct):
         if correct:
             conn.execute("""
                 UPDATE flashcard_progress
-                SET correct = correct + 1, last_seen = CURRENT_TIMESTAMP
+                SET correct = correct + 1, last_seen = CURRENT_TIMESTAMP, furigana = ?
                 WHERE id = ?
-            """, (row["id"],))
+            """, (furigana, row["id"]))
         else:
             conn.execute("""
                 UPDATE flashcard_progress
-                SET incorrect = incorrect + 1, last_seen = CURRENT_TIMESTAMP
+                SET incorrect = incorrect + 1, last_seen = CURRENT_TIMESTAMP, furigana = ?
                 WHERE id = ?
-            """, (row["id"],))
+            """, (furigana, row["id"]))
     else:
         conn.execute("""
-            INSERT INTO flashcard_progress (language, category, japanese, english, correct, incorrect)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (language, category, japanese, english, 1 if correct else 0, 0 if correct else 1))
+            INSERT INTO flashcard_progress (language, category, japanese, furigana, english, correct, incorrect)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (language, category, japanese, furigana, english, 1 if correct else 0, 0 if correct else 1))
 
     conn.commit()
     conn.close()
@@ -61,7 +67,6 @@ def record_answer(language, category, japanese, english, correct):
 def get_stats(language):
     conn = get_db()
 
-    # overall stats for this language
     overall = conn.execute("""
         SELECT
             SUM(correct) as total_correct,
@@ -71,7 +76,6 @@ def get_stats(language):
         WHERE language = ?
     """, (language,)).fetchone()
 
-    # stats per category
     categories = conn.execute("""
         SELECT
             category,
@@ -83,9 +87,8 @@ def get_stats(language):
         GROUP BY category
     """, (language,)).fetchall()
 
-    # hardest cards (highest incorrect count)
     hardest = conn.execute("""
-        SELECT japanese, english, category, correct, incorrect
+        SELECT japanese, furigana, english, category, correct, incorrect
         FROM flashcard_progress
         WHERE language = ? AND incorrect > 0
         ORDER BY incorrect DESC
@@ -104,7 +107,7 @@ def get_stats(language):
 def get_review_cards(language):
     conn = get_db()
     cards = conn.execute("""
-        SELECT japanese, english, category,
+        SELECT japanese, furigana, english, category,
                correct, incorrect,
                CAST(incorrect AS FLOAT) / (correct + incorrect) as error_rate
         FROM flashcard_progress

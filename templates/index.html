@@ -1037,7 +1037,7 @@
 
                 cards = data.cards.map(c => ({
                     japanese: c.japanese,
-                    furigana: "",
+                    furigana: c.furigana || "",
                     english: c.english,
                     category: c.category
                 }));
@@ -1087,7 +1087,6 @@
             const card = cards[cardIndex];
             const cat = isReviewMode ? (card.category || "review") : currentCategory;
 
-            // record to database
             await fetch("/record", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -1095,6 +1094,7 @@
                     language: getLanguage(),
                     category: cat,
                     japanese: card.japanese || card.display || "",
+                    furigana: card.furigana || "",
                     english: card.english,
                     correct
                 })
@@ -1103,7 +1103,25 @@
             if (correct) scoreCorrect++;
             else scoreIncorrect++;
             cardIndex++;
-            showCard();
+
+            const cardInner = document.getElementById("card-inner");
+
+            // hide content instantly
+            cardInner.style.opacity = "0";
+
+            // flip back to front
+            cardInner.classList.remove("flipped");
+
+            // wait for flip animation then load new card and fade in
+            setTimeout(() => {
+                showCard();
+                cardInner.style.transition = "opacity 0.2s";
+                cardInner.style.opacity = "1";
+                // reset transition after fade in
+                setTimeout(() => {
+                    cardInner.style.transition = "";
+                }, 200);
+            }, 500);
         }
 
         function showDoneScreen() {

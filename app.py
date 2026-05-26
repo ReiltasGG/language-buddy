@@ -6,6 +6,9 @@ from database import init_db, record_answer, get_stats, get_review_cards, reset_
 app = Flask(__name__)
 init_db()
 
+# script categories that should have NO furigana
+NO_FURIGANA_CATEGORIES = {"kanji", "hangul", "hanzi"}
+
 
 def get_system_prompt(language):
     return f"""You are a friendly {language} language tutor having a conversation with a beginner learner.
@@ -32,45 +35,48 @@ def get_flashcard_prompt(language, category):
 
     if category == "kanji":
         return f"""Generate 10 Japanese flashcards for {desc}.
-For kanji cards do NOT include furigana since the user is practicing reading kanji.
+Do NOT include furigana since the user is practicing reading kanji.
 
 Return ONLY a JSON array, no explanation, no markdown:
 [
-  {{"japanese": "日", "furigana": "", "display": "日", "english": "sun / day"}},
+  {{"japanese": "日", "furigana": "", "english": "sun / day"}},
   ...
 ]"""
 
     elif category == "hangul":
         return f"""Generate 10 Korean flashcards for basic Hangul characters or syllables.
-Include the romanization as the furigana equivalent.
+Include the romanization as furigana.
 
 Return ONLY a JSON array, no explanation, no markdown:
 [
-  {{"japanese": "가", "furigana": "ga", "display": "가", "english": "syllable: ga"}},
+  {{"japanese": "가", "furigana": "", "english": "syllable: ga"}},
   ...
 ]"""
 
     elif category == "hanzi":
         return f"""Generate 10 Mandarin flashcards for basic Hanzi characters.
-Include pinyin as the furigana equivalent.
+Do NOT include pinyin as furigana since the user is practicing reading hanzi.
 
 Return ONLY a JSON array, no explanation, no markdown:
 [
-  {{"japanese": "日", "furigana": "rì", "display": "日", "english": "sun / day"}},
+  {{"japanese": "日", "furigana": "", "english": "sun / day"}},
   ...
 ]"""
 
     else:
         return f"""Generate 10 {language} flashcards for {desc}.
-Include the {language} word, its romanization or pronunciation guide as furigana (if applicable), and the English translation.
+Include the {language} word, its pronunciation guide as furigana if the language uses a non-Latin script, and the English translation.
 
 Return ONLY a JSON array, no explanation, no markdown:
 [
-  {{"japanese": "{language} word here", "furigana": "pronunciation if applicable, else empty string", "display": "{language} word here", "english": "english translation"}},
+  {{"japanese": "{language} word here", "furigana": "pronunciation if non-Latin script, else empty string", "english": "english translation"}},
   ...
 ]
 
-For languages that use the Latin alphabet (Spanish, French, Italian, Portuguese, German), set furigana to an empty string."""
+For languages using the Latin alphabet (Spanish, French, Italian, Portuguese, German), set furigana to an empty string.
+For Japanese verbs/nouns/places, include the hiragana reading as furigana.
+For Korean verbs/nouns/places, include the romanization as furigana.
+For Mandarin verbs/nouns/places, include the pinyin as furigana."""
 
 
 @app.route("/")
@@ -138,6 +144,7 @@ def record():
         data["language"],
         data["category"],
         data["japanese"],
+        data.get("furigana", ""),
         data["english"],
         data["correct"]
     )
