@@ -1,8 +1,10 @@
 from flask import Flask, render_template, request, jsonify
 import requests
 import json
+from database import init_db, record_answer, get_stats, get_review_cards, reset_progress
 
 app = Flask(__name__)
+init_db()
 
 
 def get_system_prompt(language):
@@ -127,6 +129,36 @@ def get_flashcards():
 
     except Exception as e:
         return jsonify({"cards": [], "error": str(e)})
+
+
+@app.route("/record", methods=["POST"])
+def record():
+    data = request.json
+    record_answer(
+        data["language"],
+        data["category"],
+        data["japanese"],
+        data["english"],
+        data["correct"]
+    )
+    return jsonify({"success": True})
+
+
+@app.route("/stats/<language>")
+def stats(language):
+    return jsonify(get_stats(language))
+
+
+@app.route("/review/<language>")
+def review(language):
+    cards = get_review_cards(language)
+    return jsonify({"cards": cards})
+
+
+@app.route("/reset/<language>", methods=["POST"])
+def reset(language):
+    reset_progress(language)
+    return jsonify({"success": True})
 
 
 if __name__ == "__main__":
