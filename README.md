@@ -8,7 +8,7 @@ A locally-run AI language learning web app powered by **Gemma 3** and **Flask**.
 
 ### Conversation Mode
 - Chat with an AI tutor in your target language
-- Responses include a **📝 Notes** section with:
+- Responses include a ** Notes** section with:
   - English translation of what the tutor said
   - Gentle corrections of any mistakes you made
   - Grammar and vocabulary tips
